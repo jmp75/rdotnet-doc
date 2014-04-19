@@ -1,0 +1,20 @@
+R.NET 1.5.10 is a release towards R.NET 1.6. You are encouraged to use 1.5.10 now and give feedback: much testing has already been performed.
+
+There are many major improvements compared to 1.5.5, many addressing issues reported repeatedly via the discussion forums. 
+
+See the [documentation|documentation] for setup and usage instructions.
+
+Highlights are: 
+* R.NET binaries are now platform independent (Windows, Linux, MacOS)
+* The REngine API has changed. While this will require existing users to adapt the engine initialisation in their code, this will prevent a lot of pitfalls for new users.
+* Easier R engine initialization by default: R.NET tries to discover machine settings and R paths.
+* Performance improvement in passing large arrays/vectors (up to 100 to 1000x faster for numeric/integer vectors)
+* Improved error reporting and detailed error messages.
+* Many bug fixes such as memory leaks, R startup parameters, calling generic functions, etc.
+* Enhanced API for R function calls (.Invoke() methods) including support for named arguments.
+* Limit the cases of faulty multi-threaded accesses to the R engine
+
+The complete list of changes cannot fit here; browse the issues tab with the [url:advanced filter options|https://rdotnet.codeplex.com/workitem/list/advanced?size=100] for details.
+
+Contributors, directly or indirectly, to the code for this release are jperraud, kos59125, evolvedmicrobe, Daniel Collins, gchapman, sukru, nakagawa_hiroyuki, JoeJoe
+

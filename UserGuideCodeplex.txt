@@ -1,0 +1,275 @@
+!! Introduction
+
+This page relates to R.NET 1.5.10.
+
+R.NET enables the .NET Framework to interoperate with the R statistical language in the same process. R.NET requires .NET Framework 4 and the native R DLLs installed with the R environment. You can use R.NET from any language targetting .NET (it has been used at least from C#, F#, Vb.NET, IronPython). A couple of related works must be mentioned before you dive into this documentation. For F#, you probably should consider [url:F# R Provider|https://github.com/BlueMountainCapital/FSharpRProvider] (NOTE: as of 2014-04-20 F# R provider works with R.NET 1.5.5; this present page describes R.NET 1.5.10).
+
+!! Getting set up
+
+There is a page gathering  [Software Prerequisites] listing the platforms on which R.NET is known to run.
+As of version 1.5.10, R.NET binaries are platform independent. You _might_ need to set up a small add-on workaround on some Linux distributions (CentOS a known one), but you can just move and use the R.NET binaries across platforms.
+Assuming you have the right [Software Prerequisites], you can obtain R.NET 1.5.10 at [release:this download page|121090]. Eventually, you will find packages at the NuGet gallery.
+
+!!! Visual Studio
+
+If you are using the binaries from the zip file distribution, unzip the file and copy the content to a location of your choice. Add project references to RDotNet.dll and RDotNet.Native.dll the "usual" way.
+
+NuGet is the preferred way to manage dependencies on R.NET. While using it for R.NET 1.5.10 requires a bit of additional setting up, consider giving it a try.
+
+If you are using the NuGet packages:
+
+You first have to install, if you have not already, the NuGet package manager via Tools - Extension and Updates:
+[image:0001.png]
+
+Given that R.NET 1.5.10 is not at the public NuGet gallery, you need to [url:set up a local feed|http://docs.nuget.org/docs/creating-packages/hosting-your-own-nuget-feeds].
+
+You can add the R.NET package as a dependency to one or more projects in your solution. For one project:
+[image:001.png]
+
+[image:002.png]
+
+The NuGet system then adds a couple of references.
+[image:003.png]
+
+You can manage several projects in one go at the solution level:
+[image:004.png]
+
+You can find more general information about NuGet at [url:NuGet documentation|http://docs.nuget.org/]
+
+!!! Xamarin Studio
+
+This section is a placeholder as of 2014-04-20.
+
+!! Getting started with coding
+
+R.NET 1.5.10 includes significant changes notably to alleviate two stumbling blocks often dealt with by users: paths to the R shared library, and preventing multiple engine initializations.
+
+The following "Hello World" sample illustrates how the new API is simpler in 90% of use cases on Windows:
+
+{code:c#}
+static void Main(string[] args)
+{
+	REngine.SetEnvironmentVariables(); // <-- May be omitted; the next line would call it.
+	REngine engine = REngine.GetInstance();
+	// A somewhat contrived but customary Hello World:
+	CharacterVector charVec = engine.CreateCharacterVector(new[] { "Hello, R world!, .NET speaking" });
+	engine.SetSymbol("greetings", charVec);
+	engine.Evaluate("str(greetings)"); // print out in the console
+	string[] a = engine.Evaluate("'Hi there .NET, from the R engine'").AsCharacter().ToArray();
+	Console.WriteLine("R answered: '{0}'", a[0]);
+	Console.WriteLine("Press any key to exit the program");
+	Console.ReadKey();
+	engine.Dispose();
+}
+{code:c#}
+
+You retrieve a single REngine object instance, after setting the necessary environmental variables. Even the call to _SetEnvironmentVariables_ can be omitted, though we'd advise you keep it explicit. _SetEnvironmentVariables_, on Windows, looks at the Registry settings set up by the R installer. If need be, you can override the behaviours setting the environment variables and engine initialization with your own steps, detailed in the Appendix.
+
+On Linux/MacOS, the path to libR.so (for Linux) *must* be in the environment variable {"LD_LIBRARY_PATH"} *before* the process start, otherwise the R.NET engine will not properly initialize. If this is not set up, R.NET will throw an exception with a detailed message giving users hints as to what to do. Read the Appendix at the end of this page if R.NET complains about your {"LD_LIBRARY_PATH"}.
+
+!! Sample code
+
+You usually interact with the REngine object with the methods Evaluate, GetSymbol, and SetSymbol. To create R vector and matrices, the REngine object has extension methods such as CreateNumericVector, CreateCharacterMatrix, etc. Finally, you can invoke R functions in a variety of ways, using the method Evaluate of the REngine object, and also more directly. 
+
+!!! Basic example with t-test statistic
+
+It is available from the sample code 1 at [url:https://github.com/jmp75/rdotnet-onboarding], as of 2014-04.
+
+{code:c#}
+  static void Main(string[] args)
+  {
+	 REngine.SetEnvironmentVariables();
+	 REngine engine = REngine.GetInstance();
+	 // REngine requires explicit initialization.
+	 // You can set some parameters.
+	 engine.Initialize();
+
+	 // .NET Framework array to R vector.
+	 NumericVector group1 = engine.CreateNumericVector(new double[] { 30.02, 29.99, 30.11, 29.97, 30.01, 29.99 });
+	 engine.SetSymbol("group1", group1);
+	 // Direct parsing from R script.
+	 NumericVector group2 = engine.Evaluate("group2 <- c(29.89, 29.93, 29.72, 29.98, 30.02, 29.98)").AsNumeric();
+
+	 // Test difference of mean and get the P-value.
+	 GenericVector testResult = engine.Evaluate("t.test(group1, group2)").AsList();
+	 double p = testResult["p.value"].AsNumeric().First();
+
+	 Console.WriteLine("Group1: [{0}]", string.Join(", ", group1));
+	 Console.WriteLine("Group2: [{0}]", string.Join(", ", group2));
+	 Console.WriteLine("P-value = {0:0.000}", p);
+
+	 // you should always dispose of the REngine properly.
+	 // After disposing of the engine, you cannot reinitialize nor reuse it
+	 engine.Dispose();
+  }
+{code:c#}
+
+!!! Numeric vectors
+
+The following sample code illustrate the most used capabilities. It is extracted from the sample code 2 at [url:https://github.com/jmp75/rdotnet-onboarding], as of 2014-04.
+
+This illustrate basic operations with numeric vectors
+
+{code:c#}
+var e = engine.Evaluate("x <- 3");
+// You can now access x defined in the R environment
+NumericVector x = engine.GetSymbol("x").AsNumeric();
+engine.Evaluate("y <- 1:10");
+NumericVector y = engine.GetSymbol("y").AsNumeric();
+{code:c#}
+
+!!! Calling R functions
+
+While you may evaluate function calls by generating a string and call the Evaluate method, this can be unwieldy for cases where you pass large amounts of data. The following demonstrates how you may call a function, a bit like how you would invoke a function reflectively in .NET. 
+{code:c#}
+// Invoking functions; Previously you may have needed custom function definitions
+var myFunc = engine.Evaluate("function(x, y) { expand.grid(x=x, y=y) }").AsFunction();
+var v1 = engine.CreateIntegerVector(new[] { 1, 2, 3 });
+var v2 = engine.CreateCharacterVector(new[] { "a", "b", "c" });
+var df = myFunc.Invoke(new SymbolicExpression[] { v1, v2 }).AsDataFrame();
+{code:c#}
+
+R.NET 1.5.10 includes many improvements to support function calls directly from C#, with less string manipulations and less calls to REngine.Evaluate.
+
+{code:c#}
+// As of R.NET 1.5.10, more function call syntaxes are supported.
+var expandGrid = engine.Evaluate("expand.grid").AsFunction();
+var d = new Dictionary<string, SymbolicExpression>();
+d["x"] = v1;
+d["y"] = v2;
+df = expandGrid.Invoke(d).AsDataFrame();
+{code:c#}
+
+!!! Data frame manipulations
+
+Continuing with the results of our use of expand.grid, the following code illustrate that while R.NET tries to mimic the behavior of R with respect to data frames. Data frames are a central part of R data structures, so it is worth expanding with a few examples 
+
+{code:c#}
+engine.SetSymbol("cases", df);
+// As of R.NET 1.5.10, factor to character expressions work consistently with R
+var letterCases = engine.Evaluate("cases[,'y']").AsCharacter().ToArray();
+// "a","a","a","b","b","b", etc. Same as as.character(cases[,'y']) in R
+// Note that this used to return  "1", "1", "1", "2", "2", etc. with R.NET 1.5.5
+{code:c#}
+
+There are other ways to extract columns from the data frame, without passing strings of R expressions:
+{code:c#}
+// Equivalent:
+letterCases = df[1].AsCharacter().ToArray();
+letterCases = df["y"].AsCharacter().ToArray();
+{code:c#}
+
+The behavior for what is returned by 2-dimensional indexing usually mirrors what is observed directly in R. One exception is when row names are missing; the R behavior is debatable, so R.NET prefers to be strict.
+{code:c#}
+// Accessing items by two dimensional indexing
+string s = (string)df[1, 1]; // "a"
+s = (string)df[3, 1]; // "a"
+s = (string)df[3, "y"]; // "b"
+// s = (string)df["4", "y"]; // fails because there are no row names
+df[3, "y"] = "a";
+s = (string)df[3, "y"]; // "a"
+df[3, "y"] = "d";
+s = (string)df[3, "y"]; // null, because we have an <NA> string in R
+{code:c#}
+
+!!! Calling R scripts
+
+To reuse whole scripts, the simplest method is to use the 'source' function in R
+{code:c#}
+engine.Evaluate("source('c:/src/path/to/myscript.r')");
+{code:c#}
+
+!!! Missing values
+
+Placeholder, showing what happens bidirectionally with NA values for the various vector types. See the Data Types section later in this page.
+
+!!! Further examples
+
+Looking at the unit tests under the project RDotNet.Tests will provide further information on R.NET uses and programming idioms.
+Illustrate the speed of data transfer
+
+!!! Runtime performance
+
+Placeholder, showing best practices to maximise runtime speed
+
+!!! Other examples to document yet
+
+Placeholder
+* Handling date and time
+
+!! Data Types
+
+All expressions in R are represented as SymbolicExpression objects in R.NET. For data access, the following special classes are defined. Note that there is no direct equivalent in .NET for 'NA' values in R. Special values are used for some types but pay attention to the behaviour, so as not to risk incorrect calculations.
+
+*Table.* Classes in R.NET bridges between R and .NET Framework.
+|| R || R.NET || .NET Framework || Note ||
+| character vector | RDotNet.CharacterVector | {"System.String[]"} | |
+| integer vector | RDotNet.IntegerVector | {"System.Int32[]"} | The minimum value in R is -2^31+1 while that of .NET Framework is -2^31. Missing values are int.MinValue |
+| real vector | RDotNet.NumericVector | {"System.Double[]"} | Missing values are represented as double.NaN |
+| complex vector | RDotNet.ComplexVector | {"System.Numerics.Complex[]"} | System.Numerics assembly is required for .NET Framework 4. |
+| raw vector | RDotNet.RawVector | {"System.Byte[]"} | |
+| logical vector | RDotNet.LogicalVector | {"System.Boolean[]"} | |
+| character matrix | RDotNet.CharacterMatrix | {"System.String[, ]"} | |
+| integer matrix | RDotNet.IntegerMatrix | {"System.Int32[, ]"} | The minimum value in R is -2^31+1 while that of .NET Framework is -2^31. |
+| real matrix | RDotNet.NumericMatrix | {"System.Double[, ]"} | |
+| complex matrix | RDotNet.ComplexMatrix | {"System.Numerics.Complex[, ]"} | Reference to System.Numerics assembly is required. |
+| raw matrix | RDotNet.RawMatrix | {"System.Byte[, ]"} | |
+| logical matrix | RDotNet.LogicalMatrix | {"System.Boolean[, ]"} | |
+| list | RDotNet.GenericVector | | *From version 1.1.* |
+| data frame | RDotNet.GenericVector | | *From version 1.1.* RDotNet.DataFrame class is also available (below). |
+| data frame | RDotNet.DataFrame | | *From version 1.3.* And from version 1.5.3, [DataFrameRowAttribute and DataFrameColumnAttribute|Handling DataFrames] are available for data mapping. |
+| function | RDotNet.Function | | *From version 1.4.* Including closure, built-in function, and special function. |
+| factor | RDotNet.Factor | {"System.Int32[]"}  | *From version 1.5.2.* |
+| S4 | RDotNet.S4Object | | Not Available Yet. See S4 branch in the source control. |
+
+!! Acknowledgements
+
+Contributors, directly or indirectly, to the code for this release are jperraud, kos59125, evolvedmicrobe, Daniel Collins, gchapman, sukru, nakagawa_hiroyuki, JoeJoe
+
+!! Appendices
+
+!!! Updating environment variables on Linux (MacOS?) 
+
+The path to libR.so (for Linux) *must* be in the environment variable {"LD_LIBRARY_PATH"} *before* the process start, otherwise the R.NET engine will not properly initialize. If this is not set up, R.NET will throw an exception with a detailed message.
+
+What you will need to do there depends on the Linux (MacOS?) machine you are. 
+Let's say you needed to compile your own R from source, to get a shared R library:
+
+{code:sh}
+LOCAL_DIR=/home/username/local
+JAVAHOME=/apps/java/jdk1.7.0_25
+cd ~src
+cd R/
+tar zxpvf R-3.0.2.tar.gz
+cd R-3.0.2
+./configure --prefix=$LOCAL_DIR --enable-R-shlib  CFLAGS="-g"
+make
+make install
+{code:sh}
+
+Then prior to running a project with R.NET, you may need to update your {"LD_LIBRARY_PATH"}, and quite possibly PATH (though the latter can be done at runtime too).
+
+{code:sh}
+LOCAL_DIR=/home/username/local
+if [ "${LD_LIBRARY_PATH}" != "" ]
+then
+    export LD_LIBRARY_PATH=$LOCAL_DIR/lib:$LOCAL_DIR/lib64/R/lib:/usr/local/lib64:${LD_LIBRARY_PATH}
+else
+    export LD_LIBRARY_PATH=$LOCAL_DIR/lib:$LOCAL_DIR/lib64/R/lib:/usr/local/lib64
+fi
+# You may as well update the PATH environment variable, though R.NET does update it if need be.
+export PATH=$LOCAL_DIR/bin:$LOCAL_DIR/lib64/R/lib:${PATH}
+{code:sh}
+
+!!! Workaround for dlerror: 'invalid caller' issue on some Linux boxes. 
+
+On at least one instance of one Linux flavour (CentOS), R.NET fails and 'dlerror' returns the message 'invalid caller'.
+Dowload and follow the instructions in the zip file "libdlwrap.zip" included in the [release:this download page|121090]. If you use the source code, it is located under RDotNet.NativeLibrary/libdlwrap/
+See [url:https://rdotnet.codeplex.com/workitem/73] for detailed information about the issue.
+
+!! Advanced options for the R engine initialization
+
+This is a placeholder section.
+
+* custom CharacterConsole
+* Multiple app domains

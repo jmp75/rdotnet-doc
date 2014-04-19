@@ -1,0 +1,10 @@
+
+* Need the help from Kosei
+* API compilation passes without warnings
+* Prepare release notes. No small job.
+* Assess impact of changes, and communication
+** RProvider
+** rClr
+* Document the process for building.
+
+

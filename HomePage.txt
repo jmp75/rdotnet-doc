@@ -1,0 +1,71 @@
+*Project Description:* R.NET enables the .NET Framework to interoperate with the R statistical language in the same process. R.NET requires .NET Framework 4 and the native R DLLs installed with the R environment. R.NET works on Windows, Linux and MacOS. Enjoy statistics and programming in your special language with R.
+
+You should head for the [documentation|documentation] to get started with R.NET.
+
+!! News
+
+2014-04-20 [release:Version 1.5.10|121090] is released on this site. This is a major upgrade from 1.5.5 (despite the numbering), with many new features, improvements and fixes. While it is tagged beta, it is backed by unit testing and you are encouraged to use it now and give feedback. There are a couple of API changes that will break the compilation of previous code R.NET: this is however a matter of minutes to fix it. This API change is necessary to increase the robustness of R.NET, given some limitations of the native R engine.
+
+!! NuGet Packages
+
+You will find NuGet packages for R.NET 1.5.10 and R.NET.FSharp 0.1.3 at [release:this download page|121090] on this site. They are *not* uploaded at the public NuGet gallery. You can still use these packages if you [url:set up a local feed|http://docs.nuget.org/docs/creating-packages/hosting-your-own-nuget-feeds]. Further instructions are in the [documentation|documentation].
+
+R.NET 1.5.5 and related packages remain available:
+* [url:R.NET released on NuGet Gallery|https://nuget.org/packages/R.NET] (only Windows version). Just type "Install-Package R.NET" to install it.
+* F# specific package, [url:RDotNet.FSharp|https://nuget.org/packages/RDotNet.FSharp]
+* an alpha-release graphics engine package, [url:RDotNet.Graphics|https://www.nuget.org/packages/RDotNet.Graphics].
+
+!! Known Issues
+* There are persisting issues running R.NET from an ASP.NET application. The exact cause remains unclear, but this may be a inherent limitation of the R native engine with respect to thread safety.
+
+!! Whetting the appetite
+
+* The example below gives a flavour of how R.NET works from C#. You should head for the [documentation|documentation] to really get started with R.NET. Examples of programming styles mixing C# and R are also available at the [Examples] page.
+
+*Program.cs*
+{code:c#}
+using System;
+using System.Linq;
+using RDotNet;
+
+namespace Sample1
+{
+   class Program
+   {
+      static void Main(string[] args)
+      {
+         REngine.SetEnvironmentVariables();
+         REngine engine = REngine.GetInstance();
+         // REngine requires explicit initialization.
+         // You can set some parameters.
+         engine.Initialize();
+
+         // .NET Framework array to R vector.
+         NumericVector group1 = engine.CreateNumericVector(new double[] { 30.02, 29.99, 30.11, 29.97, 30.01, 29.99 });
+         engine.SetSymbol("group1", group1);
+         // Direct parsing from R script.
+         NumericVector group2 = engine.Evaluate("group2 <- c(29.89, 29.93, 29.72, 29.98, 30.02, 29.98)").AsNumeric();
+
+         // Test difference of mean and get the P-value.
+         GenericVector testResult = engine.Evaluate("t.test(group1, group2)").AsList();
+         double p = testResult["p.value"].AsNumeric().First();
+
+         Console.WriteLine("Group1: [{0}]", string.Join(", ", group1));
+         Console.WriteLine("Group2: [{0}]", string.Join(", ", group2));
+         Console.WriteLine("P-value = {0:0.000}", p);
+
+         // you should always dispose of the REngine properly.
+         // After disposing of the engine, you cannot reinitialize nor reuse it
+         engine.Dispose();
+
+      }
+   }
+}
+{code:c#}
+
+!! Related Projects
+
+* [url:R to CLR|https://rclr.codeplex.com/]: an R package to access .NET (CLR) objects from R, complementing R.NET. If you are looking to access .NET code from R interactively, you should consider this package.
+* [url:F# R Provider|https://github.com/BlueMountainCapital/FSharpRProvider]: an F# library that provides static typed functions exposed by R packages, using the type provider mechanism of F#.
+
+
