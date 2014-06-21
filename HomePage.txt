@@ -17,6 +17,7 @@ R.NET 1.5.5 and related packages remain available:
 
 !! Known Issues
 * There are persisting issues running R.NET from an ASP.NET application. The exact cause remains unclear, but this may be a inherent limitation of the R native engine with respect to thread safety.
+* Custom startup parameters when initializing the engine are ignored on Windows. The main drawback is memory limitations to 2GB. There will be at least a partial workaround for the next version.
 
 !! Whetting the appetite
 
@@ -35,10 +36,8 @@ namespace Sample1
       static void Main(string[] args)
       {
          REngine.SetEnvironmentVariables();
+         // There are several options to initialize the engine, but by default the following suffice:
          REngine engine = REngine.GetInstance();
-         // REngine requires explicit initialization.
-         // You can set some parameters.
-         engine.Initialize();
 
          // .NET Framework array to R vector.
          NumericVector group1 = engine.CreateNumericVector(new double[] { 30.02, 29.99, 30.11, 29.97, 30.01, 29.99 });
